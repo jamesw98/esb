@@ -14,7 +14,7 @@ rightButton = 13
 leftLight = 12
 rightLight = 11
 beeper = 7
-lightTimeSec = 1
+lightTimeSec = .001
 
 def button_pressed(channel):
     #io.setup(channel,io.OUT) # no longer accept input on that button
@@ -65,34 +65,27 @@ class Esb(object):
         else:
             self.write_debug( "FALSE button",button," on channel ",channel )
     
-    def waitForButton(self,timeout_sec,buttonNumber):
+    def waitForButton(self,timeout_sec=None,buttonNumber=0):
         """
         Wait for a button to be pressed.  Will return
         the button number that was pressed
         """
         start = time.time()
         while True:
-            button = io.input(buttonNumber)
-            if button == 1:
-                return 1
-            elif timeout_sec > 0 and (time.time() - start) > timeout_sec:
-                return 0
-                
-    def waitForAnyButton(self):
-        """
-        Wait for any button to be pressed.  Will return
-        all the buttons
-        """
-        while True:
             left = io.input(leftButton)
             right = io.input(rightButton)
             leftBell = io.input(leftGround)
             rightBell = io.input(rightGround)
-            if left or right or leftBell or rightBell:
-                print(left, right, leftBell, rightBell)
+            if left == 1 and buttonNumber != rightButton:
+                return leftButton,0,0,0
+            elif right == 1 and buttonNumber != leftButton:
+                return rightButton,0,0,0
+            elif buttonNumber == 0 and (left or right or leftBell or rightBell):
                 return left, right, leftBell, rightBell
+            elif timeout_sec > 0 and (time.time() - start) > timeout_sec:
+                return 0
     
-    def beep(self, durationSec = 1, count = 1, delaySec = .1):
+    def beep(self, durationSec = .001, count = 1, delaySec = .1):
         for i in range(count):
             io.output(beeper,io.LOW)
             time.sleep(durationSec)
@@ -120,52 +113,38 @@ class Esb(object):
             print '.',
             gc.disable()
             
-            doubleTouch = 0
+            #touch = self.waitForButton() # wait for button
             
-            (left, right, leftBell, rightBell) = self.waitForAnyButton() # wait for button
-                        
-            if left and right:
-                doubleTouch = 1
-            
-            elif left: 
+            if touch == leftButton:
                 x = rightButton
-                if rightBell:
+                if io.input(leftGround) == io.HIGH:
                     print('Right hit left bell')
+                    time.sleep(.1)
                     continue
                     
-            elif right:
+            else:
                 x = leftButton
-                if leftBell:
+                if io.input(rightGround) == io.HIGH:
                     print('Left hit right bell')
+                    time.sleep(.1)
                     continue
                 
-            else:
-                print('Magic ?!')
-                continue
-        
-            if doubleTouch == 0:
-                doubleTouch = self.waitForButton(1/25.0,x) # waits for 1/25 seconds
+            doubleTouch = self.waitForButton(1/25.0,x) # waits for 1/25 seconds
             
-            if left and right and leftBell and rightBell:
-                print('All hit ?!')
-                continue
-            
-            elif doubleTouch != 0: # lights up both lights
+            if doubleTouch != 0: # lights up both lights
                 self.lightOn(leftLight)
                 self.lightOn(rightLight)
                 print('Double touch')
                 self.beep(lightTimeSec)
                 
-            elif left: # lights up a single light
+            elif touch == leftButton: # lights up a single light
                 self.lightOn(leftLight)
                 print('Touch Left')
                 self.beep(lightTimeSec)
-            elif right: 
+            else: 
                 self.lightOn(rightLight)
                 print('Touch Right')
                 self.beep(lightTimeSec)
-            else:
-                print('Bell Guard Magic ?!')
             
             self.lightOff(rightLight)
             self.lightOff(leftLight)
