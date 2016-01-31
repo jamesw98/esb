@@ -14,7 +14,9 @@ rightButton = 13
 leftLight = 12
 rightLight = 11
 beeper = 7
-lightTimeSec = 1
+lightTimeSec = 2
+beepTimeSec = 1.5
+hitDelay = .02
 
 def button_pressed(channel):
     #io.setup(channel,io.OUT) # no longer accept input on that button
@@ -95,10 +97,14 @@ class Esb(object):
     def beep(self, durationSec = 1, count = 1, delaySec = .1):
         for i in range(count):
             io.output(beeper,io.LOW)
-            time.sleep(durationSec)
+            time.sleep(beepTimeSec)
             io.output(beeper,io.HIGH)
+            if beepTimeSec < durationSec:
+                time.sleep(durationSec-beepTimeSec)
+                
             if count > 1:
                 time.sleep(delaySec)
+  
     
     def lightOn(self,channel):
         io.output(channel,io.LOW)
@@ -117,8 +123,8 @@ class Esb(object):
         self.lightOff(rightLight)
         print('Fence!')
         while True:
-            print '.',
             gc.disable()
+            time.sleep(hitDelay)
             
             doubleTouch = 0
             
@@ -130,21 +136,28 @@ class Esb(object):
             elif left: 
                 x = rightButton
                 if rightBell:
-                    print('Right hit left bell')
+                    print('Left hit right bell')
+                    continue
+                elif leftBell:
+                    print('Left bell and left touch ?!')
                     continue
                     
             elif right:
                 x = leftButton
                 if leftBell:
-                    print('Left hit right bell')
+                    print('Right hit left bell')
+                    continue
+                elif rightBell:
+                    print('Right bell and right touch ?!')
                     continue
                 
             else:
-                print('Magic ?!')
+                print('Only bell ?!')
                 continue
         
             if doubleTouch == 0:
                 doubleTouch = self.waitForButton(1/25.0,x) # waits for 1/25 seconds
+                print('Waited for double, second try is',doubleTouch,'x is',x)
             
             if left and right and leftBell and rightBell:
                 print('All hit ?!')
